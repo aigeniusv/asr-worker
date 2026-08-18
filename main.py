@@ -1,7 +1,7 @@
 import os
 import time
 import logging
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO)
@@ -41,12 +41,22 @@ async def transcribe(file: UploadFile = File(...), language: str = "ru"):
     if model is None:
         raise HTTPException(503, "Model not loaded")
     
-    # Читаем аудио
     audio_bytes = await file.read()
     logger.info(f"Received {file.filename}: {len(audio_bytes)} bytes, lang={language}")
+    return await _transcribe(audio_bytes, "audio.mp3", language)
+
+@app.post("/transcribe-raw")
+async def transcribe_raw(request: Request):
+    if model is None:
+        raise HTTPException(503, "Model not loaded")
     
-    # Сохраняем во временный файл
-    tmp_path = f"/tmp/{file.filename or 'audio.mp3'}"
+    language = request.headers.get("X-Language", "ru")
+    audio_bytes = await request.body()
+    logger.info(f"Received raw audio: {len(audio_bytes)} bytes, lang={language}")
+    return await _transcribe(audio_bytes, "audio.mp3", language)
+
+async def _transcribe(audio_bytes, filename, language):
+    tmp_path = f"/tmp/{filename}"
     with open(tmp_path, "wb") as f:
         f.write(audio_bytes)
     
