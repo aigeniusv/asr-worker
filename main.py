@@ -55,6 +55,19 @@ async def transcribe_raw(request: Request):
     logger.info(f"Received raw audio: {len(audio_bytes)} bytes, lang={language}")
     return await _transcribe(audio_bytes, "audio.mp3", language)
 
+@app.post("/transcribe-json")
+async def transcribe_json(request: Request):
+    if model is None:
+        raise HTTPException(503, "Model not loaded")
+    
+    data = await request.json()
+    audio_b64 = data.get("audio", "")
+    lang = data.get("language", "ru")
+    fmt = data.get("format", "mp3")
+    audio_bytes = __import__("base64").b64decode(audio_b64)
+    logger.info(f"Received JSON audio: {len(audio_bytes)} bytes, lang={lang}")
+    return await _transcribe(audio_bytes, f"audio.{fmt}", lang)
+
 async def _transcribe(audio_bytes, filename, language):
     tmp_path = f"/tmp/{filename}"
     with open(tmp_path, "wb") as f:
